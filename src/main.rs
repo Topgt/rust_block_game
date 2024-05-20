@@ -22,8 +22,8 @@ fn main() {
   container.move_square_down();
   container.move_square_down();
   container.move_square_down();
-  container.move_square_down();
-  container.move_square_down();
+  // container.move_square_down();
+  // container.move_square_down();
 
   // container.move_square_left();
   // container.move_square_left();
@@ -56,9 +56,9 @@ fn main() {
   // container.move_square_right();
 
 
-  container.clockwise_rotate_square();
+  // container.clockwise_rotate_square();
 
-  // container.counterclockwise_rotate_square();
+  container.counterclockwise_rotate_square();
   // container.counterclockwise_rotate_square();
   // container.counterclockwise_rotate_square();
   container.print();
