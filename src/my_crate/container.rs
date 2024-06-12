@@ -1,21 +1,26 @@
+// use wasm_bindgen::prelude::*;
+
 use super::shape::Square;
 
 struct BoxArea {
   a: usize,
   b: usize,
 }
-pub struct Box<'a> {
+// #[wasm_bindgen]
+pub struct ContainerBox {
   box_area: BoxArea,
   pub container: Vec<Vec<u8>>,
   pub live: bool,
   pub value: Vec<u32>,
-  pub current_square: Option<&'a mut Square>,
-  pub current_x: usize,
-  pub square_x: usize,
-  pub square_y: isize,
+  pub current_square: Option<Square>,
+  current_x: usize,
+  square_x: usize,
+  square_y: isize,
 }
 
-impl<'a> Box<'a> {  
+// #[wasm_bindgen]
+impl ContainerBox {
+  #[allow(dead_code)]
   fn number_to_matrix(&mut self) {
     let mut x = 0;
     while x < self.value.len() {
@@ -42,17 +47,20 @@ impl<'a> Box<'a> {
 
   fn set_value(&mut self) {
     if let Some(square) = &self.current_square {
+      let mut x = self.current_x;
       for i in 0..square.edge {
         let mut t = square.value[i] as u32;
+        if t == 0 { x += 1; }
         if self.square_y > 0 { t <<= self.square_y;}
         else { t >>= -self.square_y;}
         self.value[self.square_x + i] |= t;
       }
-      self.current_x = self.square_x;
+      self.current_x = x;
       self.current_square = None;
     }
   }
 
+  #[allow(dead_code)]
   pub fn print(&mut self) {
     self.number_to_matrix();
     println!("{:?}", self.value);
@@ -66,7 +74,7 @@ impl<'a> Box<'a> {
   }
 
   pub fn new(x:usize, y:usize) -> Self {
-    let container = Box {
+    let container = ContainerBox {
       box_area: BoxArea {a: x, b:y},
       container: vec![vec![0; y]; x],
       current_square: None,
@@ -79,7 +87,7 @@ impl<'a> Box<'a> {
     container
   }
 
-  pub fn add_square(&mut self, square: &'a mut Square) {
+  pub fn add_square(&mut self, square: Square) {
     self.square_x = 0_usize;
     self.square_y = ((self.box_area.b -  square.edge) / 2) as isize;
     self.current_square = Some(square);
@@ -163,27 +171,31 @@ impl<'a> Box<'a> {
 
   #[allow(dead_code)]
   pub fn clockwise_rotate_square(&mut self) {
-    if let Some(square) = self.current_square.as_mut() {
+    if let Some(square) = &mut self.current_square {
+      let max: u32 = 1 << self.box_area.b;
       let s_value = square.value.clone();
       let mut t_square = Square::new(Some(s_value), None);
-      let mut c_sate: usize = 0;
+      let mut before_sate: usize = 0;
       for i in 0..t_square.edge {
         if t_square.value[t_square.edge - 1 - i] != 0 { break; }
-        c_sate += 1;
+        before_sate += 1;
       }
       t_square.clockwise_rotate();
-      let mut c_sate_1: usize = 0;
+      let mut after_sate: usize = 0;
       for i in 0..t_square.edge {
         if t_square.value[t_square.edge - 1 - i] != 0 { break; }
-        c_sate_1 += 1;
+        after_sate += 1;
       }
+      let mut sate= 0;
+      if after_sate > before_sate { sate = after_sate - before_sate; }
+
       let mut can_rotate = true;
       for i in 0..t_square.edge {
         let mut c_value = t_square.value[i] as u32;
         if self.square_y > 0 { c_value <<= self.square_y;}
         else { c_value >>= -self.square_y;}
-        let sel_value = self.value[self.square_x + i + c_sate_1 - c_sate];   
-        if c_value & sel_value > 0 {
+        let sel_value = self.value[self.square_x + i + sate];   
+        if c_value & sel_value > 0 || (c_value % 2 | 0) == 1 || c_value >= max {
           can_rotate = false;
           break;
         }
@@ -196,27 +208,29 @@ impl<'a> Box<'a> {
   
   #[allow(dead_code)]
   pub fn counterclockwise_rotate_square(&mut self) {
-    if let Some(square) = self.current_square.as_mut() {
+    if let Some(square) = &mut self.current_square {
       let max: u32 = 1 << self.box_area.b;
       let s_value = square.value.clone();
       let mut t_square = Square::new(Some(s_value), None);
-      let mut c_sate: usize = 0;
+      let mut before_sate: usize = 0;
       for i in 0..t_square.edge {
         if t_square.value[t_square.edge - 1 - i] != 0 { break; }
-        c_sate += 1;
+        before_sate += 1;
       }
       t_square.counterclockwise_rotate();
-      let mut c_sate_1: usize = 0;
+      let mut after_sate: usize = 0;
       for i in 0..t_square.edge {
         if t_square.value[t_square.edge - 1 - i] != 0 { break; }
-        c_sate_1 += 1;
+        after_sate += 1;
       }
+      let mut sate= 0;
+      if after_sate > before_sate { sate = after_sate - before_sate; }
       let mut can_rotate = true;
       for i in 0..t_square.edge {
         let mut c_value = t_square.value[i] as u32;
         if self.square_y > 0 { c_value <<= self.square_y;}
         else { c_value >>= -self.square_y;}
-        let sel_value = self.value[self.square_x + i + c_sate_1 - c_sate];
+        let sel_value = self.value[self.square_x + i + sate];
         if c_value & sel_value > 0 || (c_value % 2 | 0) == 1 || c_value >= max {
           can_rotate = false;
           break;

@@ -1,7 +1,5 @@
 use std::vec;
 
-pub trait BlockTrait {
-}
 #[derive(Debug)]
 pub struct Square {
   pub matrix: Vec<Vec<u8>>,
