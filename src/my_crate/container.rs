@@ -6,19 +6,30 @@ struct BoxArea {
   a: usize,
   b: usize,
 }
-// #[wasm_bindgen]
-pub struct ContainerBox {
-  box_area: BoxArea,
-  pub container: Vec<Vec<u8>>,
-  pub live: bool,
-  pub value: Vec<u32>,
-  pub current_square: Option<Square>,
-  current_x: usize,
-  square_x: usize,
-  square_y: isize,
+
+fn get_max_value(n: &usize) -> u32 {
+  let mut max_value = 0_u32;
+  let mut i = 0_u32;
+  while i < *n as u32 {
+    max_value += 1 << i;
+    i += 1;
+  }
+  max_value
 }
 
-// #[wasm_bindgen]
+pub struct ContainerBox {
+  box_area: BoxArea,
+  pub container: Vec<Vec<u8>>, // 容器的矩阵表示
+  pub is_full: bool, // 是否满了
+  pub value: Vec<u32>, // 每一行的数值
+  max_valueItem: u32, // 行允许的最大值
+  pub canel_len: usize, // 行方块满了清除了多少行, 每次方块被放置后计算一次
+  pub current_square: Option<Square>, // 当在容器内的方块
+  current_x: usize, // 当前容器的x坐标
+  square_x: usize, // 方块的x坐标
+  square_y: isize, // 方块的y坐标
+}
+
 impl ContainerBox {
   #[allow(dead_code)]
   fn number_to_matrix(&mut self) {
@@ -45,18 +56,66 @@ impl ContainerBox {
     }
   }
 
+  pub fn current_matrix_value(&mut self) -> Vec<u32> {
+    let mut x = 0;
+    let mut value = self.value.clone();
+    while x < value.len() {
+      let v = &mut value[x];
+      if let Some(square) = &self.current_square {
+        if x >= self.square_x && x <= self.square_x + square.edge - 1 {
+          let t = square.value[x - self.square_x] as u32;
+          if self.square_y > 0 { *v = *v | (t << self.square_y);}
+          else { *v = *v | (t >> (-self.square_y));}
+        }
+      }
+      x += 1;
+    }
+    value
+  }
+
+  fn scorekeeper(&mut self) {
+    let mut canel_len = 0_usize;
+    let mut i = self.box_area.a - 1;
+    while i > 0 {
+      if self.value[i] >= self.max_valueItem {
+        canel_len += 1;
+        let mut j = i;
+        while j > 0 {
+          self.value[j] = self.value[j - 1];
+          j -= 1;
+        }
+      }
+      i -= 1;
+    }
+    let mut next_x = 0;
+    while next_x < self.box_area.a {
+      if self.value[next_x] >= 1 {
+        break;
+      }
+      next_x += 1;
+    }
+    self.is_full = next_x == 0;
+    self.current_x = next_x;
+    self.canel_len = canel_len;
+  }
+
   fn set_value(&mut self) {
     if let Some(square) = &self.current_square {
-      let mut x = self.current_x;
-      for i in 0..square.edge {
+      let mut square_h = square.edge;
+      while square_h > 0 {
+        if square.value[square_h - 1] >= 1 {
+          break;
+        }
+        square_h -= 1;
+      }
+      for i in 0..square_h {
         let mut t = square.value[i] as u32;
-        if t == 0 { x += 1; }
         if self.square_y > 0 { t <<= self.square_y;}
         else { t >>= -self.square_y;}
         self.value[self.square_x + i] |= t;
       }
-      self.current_x = x;
       self.current_square = None;
+      self.scorekeeper();
     }
   }
 
@@ -78,24 +137,29 @@ impl ContainerBox {
       box_area: BoxArea {a: x, b:y},
       container: vec![vec![0; y]; x],
       current_square: None,
-      live: true,
+      is_full: false,
       current_x: x - 1,
       square_x: 0,
       square_y: 0,
+      canel_len: 0,
       value: vec![0_u32; x],
+      max_valueItem: get_max_value(&y),
     };
     container
   }
 
   pub fn add_square(&mut self, square: Square) {
+    self.canel_len = 0_usize;
     self.square_x = 0_usize;
     self.square_y = ((self.box_area.b -  square.edge) / 2) as isize;
     self.current_square = Some(square);
 
-    self.value[self.box_area.a - 1] = 16775167;
-    self.value[self.box_area.a - 2] = 16775167;
-    self.value[self.box_area.a - 3] = 16775167;
-    self.current_x = self.current_x - 2;
+    // self.value[self.box_area.a - 1] = 992;
+    // self.value[self.box_area.a - 2] = 512;
+    // self.value[self.box_area.a - 3] = 512;
+    // self.value[self.box_area.a - 4] = 512;
+    // self.value[self.box_area.a - 5] = 960;
+    // self.current_x = self.current_x - 2;
   }
 
   #[allow(dead_code)]
@@ -142,17 +206,24 @@ impl ContainerBox {
   pub fn move_square_down(&mut self) {
     if let Some(square) = &self.current_square {
       let mut can_move = true;
-      if self.square_x + square.edge >= self.box_area.a {
+      let mut square_h = square.edge;
+      while square_h > 0 {
+        if square.value[square_h - 1] >= 1 {
+          break;
+        }
+        square_h -= 1;
+      }
+      if self.square_x + square_h >= self.box_area.a {
         can_move = false;
-      } else if self.square_x + square.edge >= self.current_x {
-        for i in 0..square.edge {
-          if self.square_x + square.edge - i < self.current_x {
+      } else if self.square_x + square_h >= self.current_x {
+        for i in 0..square_h {
+          if self.square_x + square_h - i < self.current_x {
             break;
           }
-          let mut c_value = square.value[square.edge - 1 - i] as u32;
+          let mut c_value = square.value[square_h - 1 - i] as u32;
           if self.square_y > 0 { c_value <<= self.square_y;}
           else { c_value >>= -self.square_y;}
-          let sel_value = self.value[self.square_x + square.edge - i];
+          let sel_value = self.value[self.square_x + square_h - i];
           if c_value & sel_value > 0 {
             can_move = false;
           }
