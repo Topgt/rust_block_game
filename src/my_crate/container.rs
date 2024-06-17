@@ -84,6 +84,7 @@ impl ContainerBox {
           self.value[j] = self.value[j - 1];
           j -= 1;
         }
+        comtinue;
       }
       i -= 1;
     }
