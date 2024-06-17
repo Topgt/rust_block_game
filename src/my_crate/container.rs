@@ -22,7 +22,7 @@ pub struct ContainerBox {
   pub container: Vec<Vec<u8>>, // 容器的矩阵表示
   pub is_full: bool, // 是否满了
   pub value: Vec<u32>, // 每一行的数值
-  max_valueItem: u32, // 行允许的最大值
+  max_value_item: u32, // 行允许的最大值
   pub canel_len: usize, // 行方块满了清除了多少行, 每次方块被放置后计算一次
   pub current_square: Option<Square>, // 当在容器内的方块
   current_x: usize, // 当前容器的x坐标
@@ -77,7 +77,7 @@ impl ContainerBox {
     let mut canel_len = 0_usize;
     let mut i = self.box_area.a - 1;
     while i > 0 {
-      if self.value[i] >= self.max_valueItem {
+      if self.value[i] >= self.max_value_item {
         canel_len += 1;
         let mut j = i;
         while j > 0 {
@@ -144,7 +144,7 @@ impl ContainerBox {
       square_y: 0,
       canel_len: 0,
       value: vec![0_u32; x],
-      max_valueItem: get_max_value(&y),
+      max_value_item: get_max_value(&y),
     };
     container
   }
@@ -168,7 +168,14 @@ impl ContainerBox {
     if let Some(square) = &self.current_square {
       let mut can_move: bool = true;
       let max: u32 = 1 << (self.box_area.b - 1);
-      for i in 0..square.edge {
+      let mut square_h = square.edge;
+      while square_h > 0 {
+        if square.value[square_h - 1] >= 1 {
+          break;
+        }
+        square_h -= 1;
+      }
+      for i in 0..square_h {
         let mut c_value = square.value[i] as u32;
         if self.square_y > 0 { c_value <<= self.square_y;}
         else { c_value >>= -self.square_y;}
@@ -188,7 +195,14 @@ impl ContainerBox {
   pub fn move_square_right(&mut self) {
     if let Some(square) = &self.current_square {
       let mut can_move = true;
-      for i in 0..square.edge {
+      let mut square_h = square.edge;
+      while square_h > 0 {
+        if square.value[square_h - 1] >= 1 {
+          break;
+        }
+        square_h -= 1;
+      }
+      for i in 0..square_h {
         let mut c_value = square.value[i] as u32;
         if self.square_y > 0 { c_value <<= self.square_y;}
         else { c_value >>= -self.square_y;}
