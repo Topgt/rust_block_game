@@ -1,4 +1,5 @@
 use wasm_bindgen::prelude::*;
+use rand::Rng;
 
 pub mod my_crate;
 
@@ -8,7 +9,8 @@ pub use crate::my_crate::container::ContainerBox;
 #[wasm_bindgen]
 pub struct Game {
   container: ContainerBox,
-  next_square: Square
+  next_square: Square,
+  SHAPE_MATRIXS: Vec<Vec<Vec<u8>>>,
   // #[wasm_bindgen(skip)]
   // pub value: Vec<u32>,
 }
@@ -19,15 +21,61 @@ impl Game {
   pub fn new(x: usize, y: usize) -> Self {
     Game {
       container: ContainerBox::new(x, y),
-      next_square: Square::new(None, None)
+      next_square: Square::new(None, None),
+      SHAPE_MATRIXS: vec![
+        vec![
+          vec![0, 0, 1, 0],
+          vec![0, 0, 1, 0],
+          vec![0, 0, 1, 0],
+          vec![0, 0, 1, 0],
+        ],
+        vec![
+          vec![0, 0, 1, 0],
+          vec![0, 0, 1, 0],
+          vec![0, 0, 1, 1],
+          vec![0, 0, 0, 0],
+        ],  vec![
+          vec![0, 0, 1, 0],
+          vec![0, 0, 1, 0],
+          vec![0, 1, 1, 0],
+          vec![0, 0, 0, 0],
+        ],
+        vec![
+          vec![0, 0, 0, 0],
+          vec![0, 1, 1, 0],
+          vec![0, 1, 1, 0],
+          vec![0, 0, 0, 0],
+        ],
+        vec![
+          vec![0, 0, 0, 0],
+          vec![0, 1, 1, 0],
+          vec![1, 1, 0, 0],
+          vec![0, 0, 0, 0],
+        ],
+        vec![
+          vec![0, 0, 0, 0],
+          vec![0, 1, 1, 1],
+          vec![0, 0, 1, 0],
+          vec![0, 0, 0, 0],
+        ],
+        vec![
+          vec![0, 0, 0, 0],
+          vec![0, 1, 1, 0],
+          vec![0, 0, 1, 1],
+          vec![0, 0, 0, 0],
+        ],
+      ]
     }
   }
 
   pub fn add_square(&mut self) {
+    let mut rng = rand::thread_rng();
+    let random_number = rng.gen_range(0..7);
+    let mut matrix = self.SHAPE_MATRIXS[random_number].clone();
     if self.container.current_square.is_none() && self.container.is_full == false {
       let square = Square::new(Some(self.next_square.value.clone()), None);
       self.container.add_square(square);
-      self.next_square = Square::new(None, None);
+      self.next_square = Square::new(None, Some(matrix));
     }
   }
 
